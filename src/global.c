@@ -1703,7 +1703,7 @@ int nlua_filter_input(int *input, bool *meta_key, bool *func_key) {
     lua_pushinteger(nlua_L, cur_offset);
     lua_pushinteger(nlua_L, cur_lineno);
     lua_pushstring(nlua_L, cur_filename);
-    fprintf(stderr, "Lua nlua_filter_input(%d, %d, %d, <<%s>>, %d, %d, <<%s>>)\n", *input, *meta_key, *func_key, cur_line, cur_offset, cur_lineno, cur_filename);
+    //fprintf(stderr, "Lua nlua_filter_input(%d, %d, %d, <<%s>>, %d, %d, <<%s>>)\n", *input, *meta_key, *func_key, cur_line, cur_offset, cur_lineno, cur_filename);
     if (lua_pcall(nlua_L, 7, 4, 0) != 0) {
         // Error in Lua script
         fprintf(stderr, "Lua error: %s\n", lua_tostring(nlua_L, -1));
@@ -1733,7 +1733,7 @@ int nlua_unget_input(lua_State *L) {
     meta_key = (bool)lua_toboolean(nlua_L, 2);
     func_key = (bool)lua_toboolean(nlua_L, 3);
 
-    fprintf(stderr, "Lua nlua_unget_input input=%d meta_key=%d func_key=%d\n", input, meta_key, func_key);
+    //fprintf(stderr, "Lua nlua_unget_input input=%d meta_key=%d func_key=%d\n", input, meta_key, func_key);
 
     // Push onto input queue
     unget_kbinput(input, meta_key, func_key);
