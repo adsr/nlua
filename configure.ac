@@ -77,7 +77,6 @@ AC_ARG_ENABLE(tiny,
     AC_DEFINE(DISABLE_WRAPPING, 1, [Define this to disable all text wrapping.])
 fi])
 
-
 AC_ARG_ENABLE(extra,
 [  --disable-extra          Disable extra features, currently only easter eggs],
 [if test x$enableval != xno; then
@@ -625,6 +624,13 @@ else
 fi
 AM_CONDITIONAL(GROFF_HTML, test x$groff_html_support = xyes)
 
+AC_ARG_ENABLE(nlua,
+[  --enable-nlua               Enable crazy input filtering via Lua script],
+[if test x$enableval != no; then
+    AC_CHECK_HEADERS(lua5.2/lua.h)
+    AC_CHECK_LIB(lua5.2, luaL_openlibs, AC_DEFINE(HAVE_NLUA, 1, [Lua support]))
+    LIBS="$LIBS -llua5.2"
+fi])
 
 AC_CONFIG_FILES([
 Makefile

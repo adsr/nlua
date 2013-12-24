@@ -1545,6 +1545,12 @@ int do_input(bool *meta_key, bool *func_key, bool *s_or_t, bool
     /* Read in a character. */
     input = get_kbinput(edit, meta_key, func_key);
 
+#ifdef HAVE_NLUA
+    if (input == ERR) {
+        return -1;
+    }
+#endif
+
 #ifndef DISABLE_MOUSE
     if (allow_funcs) {
 	/* If we got a mouse click and it was on a shortcut, read in the
@@ -2706,6 +2712,13 @@ int main(int argc, char **argv)
     display_main_list();
 
     display_buffer();
+
+#ifdef HAVE_NLUA
+    if (nlua_script_path) {
+        // Execute Lua script
+        nlua_init(nlua_script_path);
+    }
+#endif
 
     while (TRUE) {
 	bool meta_key, func_key, s_or_t, ran_func, finished;

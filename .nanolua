@@ -1,0 +1,62 @@
+function nlua_filter_input(input, meta_key, func_key, line, offset, lineno, filename)
+    swallow_key = false
+    if input == ctrl_byte("Q") then
+        swallow_key = true -- Do not process the Ctrl-Q
+        send_keys(ctrl("W") .. "Adam\r") -- Find next occurence of 'Adam'
+    elseif input == ctrl_byte("S") then
+        meta_key = true
+        input = string.byte("g") -- Override input as Meta-G
+        swallow_key = false -- Allow Meta-G to be processed
+        send_keys("10\r") -- Queue 'go to line 10'
+    elseif input == ctrl_byte("W") then -- A delete-word-back example
+        swallow_key = true
+        offset = offset + 1 -- Lua strings are 1-indexed
+        local delete_index = nil
+        local find_index = 1
+        if line:find("^%S*%s*$") ~= nil then
+            delete_index = 1
+        else
+            while true do
+                local start_index, ig = line:find("%s%S", find_index)
+                if start_index == nil or start_index >= offset then
+                    break
+                end
+                delete_index = start_index + 1
+                find_index = delete_index
+            end
+        end
+        if delete_index ~= nil and offset - delete_index > 0 then
+            send_keys(ctrl("H"):rep(offset - delete_index))
+        end
+    end
+    return input, meta_key, func_key, swallow_key
+end
+
+function ctrl_byte(c)
+    return c:upper():byte() - 64
+end
+
+function ctrl(c)
+    return string.char(ctrl_byte(c))
+end
+
+function meta(c)
+    return string.char(c:byte(), 0) -- nullchar is a special case in send_keys
+end
+
+function send_keys(key_str)
+    local key_arr = {}
+    local next_is_meta = false
+    for c in key_str:reverse():gmatch('.') do
+        if c:byte() == 0 then
+            next_is_meta = true
+        else
+            local is_meta = false
+            if next_is_meta then
+                is_meta = true
+                next_is_meta = false
+            end
+            nlua_unget_input(c:byte(), is_meta, false)
+        end
+    end
+end

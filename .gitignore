@@ -12,6 +12,7 @@ Makefile.in
 /config.log
 /config.h
 /config.h.in
+/config.h.in~
 /config.rpath
 /config.status
 /config.sub
@@ -20,7 +21,7 @@ Makefile.in
 /install-sh
 /missing
 /mkinstalldirs
+/mkinstalldirs~
 /stamp-h1
-
 /nano.spec
 /src/nano

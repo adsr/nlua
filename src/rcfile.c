@@ -620,6 +620,20 @@ void parse_unbinding(char *ptr)
     }
 }
 
+#ifdef HAVE_NLUA
+/** Parse out Lua user script path */
+void parse_lua(char *ptr) {
+    char *option;
+
+    option = ptr;
+    if (*option == '"')
+        option++;
+    ptr = parse_argument(ptr);
+
+    nlua_script_path = (char *)nmalloc((strlen(option) + 1) * sizeof(char));
+    snprintf(nlua_script_path, strlen(option) + 1, "%s", option);
+}
+#endif
 
 /* Read and parse additional syntax files. */
 void parse_include(char *ptr)
@@ -1037,7 +1051,11 @@ void parse_rcfile(FILE *rcstream
 		rcfile_error(N_("Syntax \"%s\" has no color commands"),
 			endsyntax->desc);
 	    parse_syntax(ptr);
+#ifdef HAVE_NLUA
+	} else if (strcasecmp(keyword, "lua") == 0) {
+	    parse_lua(ptr);
 	}
+#endif
 	else if (strcasecmp(keyword, "magic") == 0) {
  	    parse_magictype(ptr);
 	} else if (strcasecmp(keyword, "header") == 0)

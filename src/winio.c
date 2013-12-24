@@ -318,6 +318,15 @@ int get_kbinput(WINDOW *win, bool *meta_key, bool *func_key)
     if (win == edit)
 	check_statusblank();
 
+#ifdef HAVE_NLUA
+    // Allow Lua script to filter and/or swallow input
+    if (get_key_buffer_len() == 0) {
+        if (nlua_filter_input(&kbinput, meta_key, func_key) == -1) {
+            return ERR;
+        }
+    }
+#endif
+
     return kbinput;
 }
 

@@ -28,6 +28,12 @@
 #include <strings.h>
 #include "assert.h"
 
+#ifdef HAVE_NLUA
+#include <lua5.2/lua.h>
+#include <lua5.2/lauxlib.h>
+#include <lua5.2/lualib.h>
+#endif
+
 /* Global variables. */
 #ifndef NANO_TINY
 sigjmp_buf jump_buf;
@@ -202,6 +208,12 @@ int reverse_attr = A_REVERSE;
 
 char *homedir = NULL;
 	/* The user's home directory, from $HOME or /etc/passwd. */
+
+#ifdef HAVE_NLUA
+lua_State *nlua_L = NULL;
+int nlua_filter_input_ref = LUA_REFNIL;
+char *nlua_script_path = NULL;
+#endif
 
 /* Return the number of entries in the shortcut list s for a given menu. */
 size_t length_of_list(int menu)
@@ -1620,12 +1632,115 @@ int strtomenu(char *input)
     else if (!strcasecmp(input, "whereisfile"))
 	return MWHEREISFILE;
     else if (!strcasecmp(input, "gotodir"))
+
 	return MGOTODIR;
 
     return -1;
 }
 #endif
 
+
+#ifdef HAVE_NLUA
+/** Init Lua state */
+void nlua_init(char *script_path) {
+    // Init state
+    nlua_L = luaL_newstate();
+    luaL_openlibs(nlua_L);
+    lua_settop(nlua_L, 0);
+
+    // Define nlua_unget_input
+    lua_pushcfunction(nlua_L, nlua_unget_input);
+    lua_setglobal(nlua_L, "nlua_unget_input");
+
+    // Run user script
+    if (luaL_dofile(nlua_L, script_path) != LUA_OK) {
+        fprintf(stderr, "Lua error: %s\n", lua_tostring(nlua_L, -1));
+        return;
+    }
+
+    // Hook nlua_filter_input
+    lua_getglobal(nlua_L, "nlua_filter_input");
+    if (!lua_isfunction(nlua_L, -1)) {
+        fprintf(stderr, "Lua error: nlua_filter_input function not defined\n");
+        return;
+    }
+    nlua_filter_input_ref = luaL_ref(nlua_L, LUA_REGISTRYINDEX);
+}
+
+/** Allow Lua script to mess with input */
+int nlua_filter_input(int *input, bool *meta_key, bool *func_key) {
+    int swallow_key;
+    char *cur_filename;
+    char *cur_line;
+    int cur_offset;
+    int cur_lineno;
+
+    if (nlua_filter_input_ref == LUA_REFNIL) {
+        // No hook
+        return 0;
+    }
+
+    // Get buffer context
+    cur_filename = "";
+    cur_line = "";
+    cur_offset = -1;
+    cur_lineno = -1;
+    if (openfile) {
+        cur_filename = openfile->filename;
+        cur_offset = (int)openfile->current_x;
+        if (openfile->current && openfile->current->data) {
+            cur_line = openfile->current->data;
+            cur_lineno = (int)openfile->current->lineno;
+        }
+    }
+
+    // Call nlua_filter_input in Lua script
+    lua_rawgeti(nlua_L, LUA_REGISTRYINDEX, nlua_filter_input_ref);
+    lua_pushinteger(nlua_L, *input);
+    lua_pushboolean(nlua_L, *meta_key ? 1 : 0);
+    lua_pushboolean(nlua_L, *func_key ? 1 : 0);
+    lua_pushstring(nlua_L, cur_line);
+    lua_pushinteger(nlua_L, cur_offset);
+    lua_pushinteger(nlua_L, cur_lineno);
+    lua_pushstring(nlua_L, cur_filename);
+    fprintf(stderr, "Lua nlua_filter_input(%d, %d, %d, <<%s>>, %d, %d, <<%s>>)\n", *input, *meta_key, *func_key, cur_line, cur_offset, cur_lineno, cur_filename);
+    if (lua_pcall(nlua_L, 7, 4, 0) != 0) {
+        // Error in Lua script
+        fprintf(stderr, "Lua error: %s\n", lua_tostring(nlua_L, -1));
+        lua_pop(nlua_L, 1);
+        return 0;
+    }
+
+    // Retval tuple is (int input, bool meta_key, bool func_key, bool swallow_key)
+    *input = luaL_checkint(nlua_L, -4);
+    *meta_key = (bool)lua_toboolean(nlua_L, -3);
+    *func_key = (bool)lua_toboolean(nlua_L, -2);
+    swallow_key = lua_toboolean(nlua_L, -1);
+
+    lua_pop(nlua_L, 4); // Pop off retvals
+
+    return swallow_key ? -1 : 0;
+}
+
+/** Allow Lua script to add to input queue */
+int nlua_unget_input(lua_State *L) {
+    int input;
+    bool meta_key;
+    bool func_key;
+
+    // Get args
+    input = luaL_checkint(nlua_L, 1);
+    meta_key = (bool)lua_toboolean(nlua_L, 2);
+    func_key = (bool)lua_toboolean(nlua_L, 3);
+
+    fprintf(stderr, "Lua nlua_unget_input input=%d meta_key=%d func_key=%d\n", input, meta_key, func_key);
+
+    // Push onto input queue
+    unget_kbinput(input, meta_key, func_key);
+
+    return 0; // Zero retvals
+}
+#endif
 
 #ifdef DEBUG
 /* This function is used to gracefully return all the memory we've used.

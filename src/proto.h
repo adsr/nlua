@@ -26,6 +26,10 @@
 
 #include "nano.h"
 
+#ifdef HAVE_NLUA
+#include <lua5.2/lua.h>
+#endif
+
 /* All external variables.  See global.c for their descriptions. */
 #ifndef NANO_TINY
 extern sigjmp_buf jump_buf;
@@ -127,6 +131,12 @@ extern regmatch_t regmatches[10];
 extern int reverse_attr;
 
 extern char *homedir;
+
+#ifdef HAVE_NLUA
+extern lua_State *nlua_L;
+extern int nlua_filter_input_ref;
+extern char *nlua_script_path;
+#endif
 
 /* All functions in browser.c. */
 #ifndef DISABLE_BROWSER
@@ -565,6 +575,9 @@ void parse_colors(char *ptr, bool icase);
 void reset_multis(filestruct *fileptr, bool force);
 void alloc_multidata_if_needed(filestruct *fileptr);
 #endif
+#ifdef HAVE_NLUA
+void parse_lua(char *ptr);
+#endif
 void parse_rcfile(FILE *rcstream
 #ifdef ENABLE_COLOR
 	, bool syntax_only
@@ -847,6 +860,12 @@ extern const char *regexp_msg;
 void do_credits(void);
 #endif
 
+#ifdef HAVE_NLUA
+void nlua_init(char *script_path);
+int nlua_filter_input(int *input, bool *meta_key, bool *func_key);
+int nlua_unget_input(lua_State *L);
+#endif
+
 /* May as just throw these here since they are just placeholders */
 void do_cancel(void);
 void case_sens_void(void);
@@ -863,6 +882,5 @@ void backwards_void(void);
 void goto_dir_void(void);
 void no_replace_void(void);
 void ext_cmd_void(void);
-
 
 #endif /* !PROTO_H */
